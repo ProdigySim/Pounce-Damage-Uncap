@@ -69,9 +69,9 @@ float * g_pDifferenceData=NULL;
 float g_flMinRange=300.0;
 float g_flMaxRange=1000.0;
 #if SH_SYS == SH_SYS_WIN32
-float g_flDiffRatio;
+float g_flDiffRatio=1.0/700.0;
 #else
-float g_flDifference;
+float g_flDifference=700.0;
 #endif
 
 
@@ -106,18 +106,22 @@ bool PatchPounceVars(void * pServerDll)
 	g_MemUtils.SetMemPatchable(pAddr, g_iOffsets[2]+sizeof(float*));
 	float ** pPatchAddr = (float**)(pAddr + g_iOffsets[0]);
 	g_pMinRangeData = *pPatchAddr;
+	g_flMinRange=*g_pMinRangeData;
 	*pPatchAddr=&g_flMinRange;
 
 	pPatchAddr = (float**)(pAddr + g_iOffsets[1]);
 	g_pMaxRangeData = *pPatchAddr;
+	g_flMaxRange=*g_pMaxRangeData;
 	*pPatchAddr=&g_flMaxRange;
 
 	pPatchAddr = (float**)(pAddr + g_iOffsets[2]);
 	g_pDifferenceData = *pPatchAddr;
 
 #if SH_SYS == SH_SYS_WIN32
+	g_flDiffRatio=*g_pDifferenceData;
 	*pPatchAddr=&g_flDiffRatio;
 #elif SH_SYS == SH_SYS_LINUX
+	g_flDifference=*g_pDifferenceData;
 	*pPatchAddr=&g_flDifference;
 #endif
 
