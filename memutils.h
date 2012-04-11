@@ -37,13 +37,13 @@
 #include "sourcehook.h"
 #include "sh_memory.h"
 
-#if defined PLATFORM_LINUX || defined PLATFORM_APPLE
+#if SH_SYS == SH_SYS_LINUX || SH_SYS == SH_SYS_APPLE
 #include <sh_vector.h>
 #include "sm_symtable.h"
 using SourceHook::CVector;
 #endif
 
-#ifdef PLATFORM_APPLE
+#if SH_SYS == SH_SYS_APPLE
 #include <CoreServices/CoreServices.h>
 #endif
 
@@ -53,7 +53,7 @@ struct DynLibInfo
 	size_t memorySize;
 };
 
-#if defined PLATFORM_LINUX || defined PLATFORM_APPLE
+#if SH_SYS == SH_SYS_LINUX || SH_SYS == SH_SYS_APPLE
 struct LibSymbolTable
 {
 	SymbolTable table;
@@ -71,16 +71,16 @@ public:
 	void *FindPattern(const void *start, const void *end, const char *pattern, size_t len);
 	void *ResolveSymbol(void *handle, const char *symbol);
     // Sets protection on the memory
-    void ProtectMemory(void *pAddr, int nLength, int nProt);
+    bool ProtectMemory(void *pAddr, int nLength, int nProt);
     // Allows the memory to be written to
-    void SetMemPatchable(void *pAddr, size_t nSize);
+    bool SetMemPatchable(void *pAddr, int nSize);
 
 public:
 	bool GetLibraryInfo(const void *libPtr, DynLibInfo &lib);
-#if defined PLATFORM_LINUX || defined PLATFORM_APPLE
+#if SH_SYS == SH_SYS_LINUX || SH_SYS == SH_SYS_APPLE
 private:
 	CVector<LibSymbolTable *> m_SymTables;
-#ifdef PLATFORM_APPLE
+#if SH_SYS == SH_SYS_APPLE
 	struct dyld_all_image_infos *m_ImageList;
 	SInt32 m_OSXMajor;
 	SInt32 m_OSXMinor;

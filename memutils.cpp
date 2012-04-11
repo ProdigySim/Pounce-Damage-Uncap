@@ -35,6 +35,7 @@
 #include <fcntl.h>
 #include <link.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #define PAGE_SIZE			4096
 #define PAGE_ALIGN_UP(x)	((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
@@ -60,7 +61,7 @@ typedef struct task_dyld_info task_dyld_info_data_t;
 #define TASK_DYLD_INFO 17
 #define TASK_DYLD_INFO_COUNT (sizeof(task_dyld_info_data_t) / sizeof(natural_t))
 #endif // MAC_OS_X_VERSION_10_6
-#endif // PLATFORM_APPLE
+#endif // SH_SYS_APPLE
 
 MemoryUtils g_MemUtils;
 
@@ -445,7 +446,7 @@ bool MemoryUtils::GetLibraryInfo(const void *libPtr, DynLibInfo &lib)
 		return false;
 	}
 
-#ifdef SH_SYS == SH_SYS_WIN32
+#if SH_SYS == SH_SYS_WIN32
 
 	MEMORY_BASIC_INFORMATION info;
 	IMAGE_DOS_HEADER *dos;
@@ -618,17 +619,13 @@ bool MemoryUtils::GetLibraryInfo(const void *libPtr, DynLibInfo &lib)
 	return true;
 }
 
-void MemoryUtils::ProtectMemory(void *pAddr, int nLength, int nProt)
+bool MemoryUtils::ProtectMemory(void *pAddr, int nLength, int nProt)
 {
-	SourceHook::SetMemAccess(pAddr, nLength, nProt);
-
-    return;
+	return SourceHook::SetMemAccess(pAddr, nLength, nProt);
 }
 
-void MemoryUtils::SetMemPatchable(void *pAddr, size_t nSize)
+bool MemoryUtils::SetMemPatchable(void *pAddr, int nSize)
 {
-    ProtectMemory(pAddr, (int)nSize, SH_MEM_READ | SH_MEM_WRITE | SH_MEM_EXEC);
-
-    return;
+    return ProtectMemory(pAddr, (int)nSize, SH_MEM_READ | SH_MEM_WRITE | SH_MEM_EXEC);
 }
 

@@ -6,7 +6,9 @@
 ###########################################
 
 HL2SDKL4D2 ?= ../../hl2sdk-l4d2
-MMSOURCE18 ?= ..
+MMSOURCE ?= ../mmsource-18
+MMSOURCE18 = $(MMSOURCE)
+SOURCEMOD ?= ../sourcemod-central
 
 #####################################
 ### EDIT BELOW FOR OTHER PROJECTS ###
@@ -61,7 +63,7 @@ LINK += $(HL2LIB)/tier1_i486.a $(LIB_PREFIX)vstdlib$(LIB_SUFFIX) $(LIB_PREFIX)ti
 	-static-libgcc
 
 INCLUDE += -I. -I.. -I$(HL2PUB) -I$(HL2PUB)/engine -I$(HL2PUB)/mathlib -I$(HL2PUB)/vstdlib \
-	-I$(HL2PUB)/tier0 -I$(HL2PUB)/tier1 -I. -I$(METAMOD) -I$(METAMOD)/sourcehook
+	-I$(HL2PUB)/tier0 -I$(HL2PUB)/tier1 -I. -I$(METAMOD) -I$(METAMOD)/sourcehook -I$(SOURCEMOD)/core/logic
 
 ################################################
 ### DO NOT EDIT BELOW HERE FOR MOST PROJECTS ###
@@ -91,7 +93,7 @@ endif
 
 CFLAGS += -Dstricmp=strcasecmp -D_stricmp=strcasecmp -D_strnicmp=strncasecmp \
 	-Dstrnicmp=strncasecmp -D_snprintf=snprintf -D_vsnprintf=vsnprintf -D_alloca=alloca \
-	-Dstrcmpi=strcasecmp -Wall -Wno-non-virtual-dtor -Werror -fPIC -fno-exceptions \
+	-Dstrcmpi=strcasecmp -Wall -Wno-non-virtual-dtor -fPIC -fno-exceptions \
 	-fno-rtti -msse -m32 -fno-strict-aliasing
 
 ifeq "$(GCC_VERSION)" "4"
@@ -107,9 +109,9 @@ all:
 	mkdir -p $(BIN_DIR)
 	ln -sf $(HL2LIB)/$(LIB_PREFIX)vstdlib$(LIB_SUFFIX)
 	ln -sf $(HL2LIB)/$(LIB_PREFIX)tier0$(LIB_SUFFIX)
-	$(MAKE) -f Makefile stub_mm
+	$(MAKE) -f Makefile pounce_damage_uncap
 
-stub_mm: $(OBJ_BIN)
+pounce_damage_uncap: $(OBJ_BIN)
 	$(CPP) $(INCLUDE) -m32 $(OBJ_BIN) $(LINK) -ldl -lm -o $(BIN_DIR)/$(BINARY)
 
 default: all
