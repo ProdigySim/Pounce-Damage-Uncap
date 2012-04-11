@@ -54,17 +54,19 @@ ConVar z_pounce_damage_range_min("z_pounce_damage_range_min", "300.0", FCVAR_GAM
 // D9 E8 D9 C0 D9 05 ? ? ? ? D8 D3 DF E0 F6 C4 05
 const char g_sPattern[] = "\xD9\xE8\xD9\xC0\xD9\x05\x2a\x2a\x2a\x2a\xD8\xD3\xDF\xE0\xf6\xc4\x05";
 int g_iOffsets[3]={6, 36, 61};
-#elif SH_SYS == SH_SYS_LINUX
-// 66 0F 6E ? F3 0F 51 ? F3 0F 11 ? ? ? ? ? D9 83 ? ? ? ? D9 85 ? ? ? ? DF E9 0F 86
-const char * g_sPattern[] = "\x66\x0F\x6E\x2A\xF3\x0F\x51\x2A\xF3\x0F\x11\x2A\x2A\x2A\x2A\x2A\xD9\x83\x2A\x2A\x2A\x2A\xD9\x85\x2A\x2A\x2A\x2A\xDF\xE9\x0F\x86";
-int g_iOffsets[3]={18, 47, 71};
-#endif
-
-char *pPatchBaseAddr=NULL;
 
 float * g_pMinRangeData=NULL;
 float * g_pMaxRangeData=NULL;
 float * g_pDifferenceData=NULL;
+
+#elif SH_SYS == SH_SYS_LINUX
+// 66 0F 6E ? F3 0F 51 ? F3 0F 11 ? ? ? ? ? D9 83 ? ? ? ? D9 85 ? ? ? ? DF E9 0F 86
+const char g_sPattern[] = "\x66\x0F\x6E\x2A\xF3\x0F\x51\x2A\xF3\x0F\x11\x2A\x2A\x2A\x2A\x2A\xD9\x83\x2A\x2A\x2A\x2A\xD9\x85\x2A\x2A\x2A\x2A\xDF\xE9\x0F\x86";
+int g_iOffsets[3]={16, 45, 71};
+char g_OrigInstr[3][6];
+#endif
+
+char *pPatchBaseAddr=NULL;
 
 float g_flMinRange=300.0;
 float g_flMaxRange=1000.0;
@@ -89,6 +91,7 @@ bool PounceDamageUncap::Load(PluginId id, ISmmAPI *ismm, char *error, size_t max
 		Warning("Couldn't patch pounce variables. Giving up.\n");
 		return false;
 	}
+
 	ConVar_Register(0, this);
 
 	g_flMinRange = z_pounce_damage_range_min.GetFloat();
@@ -101,9 +104,19 @@ bool PounceDamageUncap::Load(PluginId id, ISmmAPI *ismm, char *error, size_t max
 bool PatchPounceVars(void * pServerDll)
 {
 	char *pAddr = pPatchBaseAddr = (char*)g_MemUtils.FindLibPattern(pServerDll, g_sPattern, sizeof(g_sPattern)-1);
-	DevMsg("Found Pattern at %08x", pAddr);
-	
-	g_MemUtils.SetMemPatchable(pAddr, g_iOffsets[2]+sizeof(float*));
+	if(pAddr == NULL)
+	{
+		return false;
+	}
+	DevMsg("Found Pattern at %08x\n", pAddr);
+
+#if SH_SYS == SH_SYS_WIN32
+	if(!g_MemUtils.SetMemPatchable(pAddr+g_iOffsets[0], (g_iOffsets[2]-g_iOffsets[0])+sizeof(float*)))
+	{
+		Warning("Failed to set mem patchable\n");
+		return false;
+	}
+
 	float ** pPatchAddr = (float**)(pAddr + g_iOffsets[0]);
 	g_pMinRangeData = *pPatchAddr;
 	g_flMinRange=*g_pMinRangeData;
@@ -117,12 +130,48 @@ bool PatchPounceVars(void * pServerDll)
 	pPatchAddr = (float**)(pAddr + g_iOffsets[2]);
 	g_pDifferenceData = *pPatchAddr;
 
-#if SH_SYS == SH_SYS_WIN32
 	g_flDiffRatio=*g_pDifferenceData;
 	*pPatchAddr=&g_flDiffRatio;
 #elif SH_SYS == SH_SYS_LINUX
-	g_flDifference=*g_pDifferenceData;
-	*pPatchAddr=&g_flDifference;
+
+	if(!g_MemUtils.SetMemPatchable(pAddr+g_iOffsets[0], (g_iOffsets[2]-g_iOffsets[0])+6))
+	{
+		Warning("Failed to set mem patchable\n");
+		return false;
+	}
+
+	char * pPatchAddr = pAddr + g_iOffsets[0];
+	if(pPatchAddr[0] != '\xD9' || pPatchAddr[1] != '\x83')
+	{
+		Warning("Bad offset #1\n");
+		return false;
+	}
+	memcpy(g_OrigInstr[0], pPatchAddr, 6);
+	pPatchAddr[0] = '\xD9'; // fld
+	pPatchAddr[1] = '\x05'; // direct addr into ST0
+	*(float**)(&pPatchAddr[2]) = &g_flMinRange;
+	
+	pPatchAddr = pAddr + g_iOffsets[1];
+	if(pPatchAddr[0] != '\xD9' || pPatchAddr[1] != '\x83')
+	{
+		Warning("Bad offset #2\n");
+		return false;
+	}
+	memcpy(g_OrigInstr[1], pPatchAddr, 6);
+	pPatchAddr[0] = '\xD9'; // fld
+	pPatchAddr[1] = '\x05'; // direct addr into ST0
+	*(float**)(&pPatchAddr[2]) = &g_flMaxRange;
+
+	pPatchAddr = pAddr + g_iOffsets[2];
+	if(pPatchAddr[0] != '\xD8' || pPatchAddr[1] != '\xB3')
+	{
+		Warning("Bad offset #1\n");
+		return false;
+	}
+	memcpy(g_OrigInstr[2], pPatchAddr, 6);
+	pPatchAddr[0] = '\xD8'; // fdiv
+	pPatchAddr[1] = '\x35'; // direct addr by ST6?
+	*(float**)(&pPatchAddr[2]) = &g_flDifference;
 #endif
 
 	return true;
@@ -132,6 +181,7 @@ void UnPatchPounceVars()
 {
 	char *pAddr = pPatchBaseAddr;
 	
+#if SH_SYS == SH_SYS_WIN32
 	float ** pPatchAddr = (float**)(pAddr + g_iOffsets[0]);
 	*pPatchAddr=g_pMinRangeData;
 	
@@ -140,6 +190,13 @@ void UnPatchPounceVars()
 
 	pPatchAddr = (float**)(pAddr + g_iOffsets[2]);
 	*pPatchAddr=g_pDifferenceData;
+#elif SH_SYS == SH_SYS_LINUX
+
+	memcpy(pAddr+g_iOffsets[0], g_OrigInstr[0], 6);
+	memcpy(pAddr+g_iOffsets[1], g_OrigInstr[1], 6);
+	memcpy(pAddr+g_iOffsets[2], g_OrigInstr[2], 6);
+
+#endif
 }
 
 bool PounceDamageUncap::Unload(char *error, size_t maxlen)
