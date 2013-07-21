@@ -247,7 +247,7 @@ void recalculate_difference()
 	float diff = g_flMaxRange - g_flMinRange;
 	g_fRangeScaleFactor = (diff == 0.0) ? FLT_MAX : 1.0/diff;
 #ifdef _NegativeMinRangeAddrOffset
-	g_NegativeMinRange = -g_flMaxRange;
+	g_NegativeMinRange = -g_flMinRange;
 #endif
 }
 
